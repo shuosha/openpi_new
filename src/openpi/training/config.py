@@ -647,7 +647,7 @@ _CONFIGS = [
             pi05=True,
             paligemma_variant="gemma_2b_lora",
             action_expert_variant="gemma_300m_lora",
-            rtc_max_delay=8,
+            rtc_max_delay=10,
             action_horizon=50,
         ),
         data=ScenixAlohaDataConfig(

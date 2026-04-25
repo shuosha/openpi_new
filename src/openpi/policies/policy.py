@@ -65,7 +65,23 @@ class Policy(BasePolicy):
             self._rng = rng or jax.random.key(0)
 
     @override
-    def infer(self, obs: dict, *, noise: np.ndarray | None = None) -> dict:  # type: ignore[misc]
+    def infer(  # type: ignore[misc]
+        self,
+        obs: dict,
+        *,
+        noise: np.ndarray | None = None,
+        prev_action_chunk: np.ndarray | None = None,
+        inference_delay: int = 0,
+    ) -> dict:
+        """Run inference on a single observation.
+
+        Training-time RTC kwargs:
+            prev_action_chunk: previous chunk's predictions, shape (action_horizon, action_dim).
+                Only the first `inference_delay` slots are read.
+            inference_delay: number of action slots in `prev_action_chunk` that overlap with the
+                current chunk during the inference latency window. Must be set together with
+                prev_action_chunk. inference_delay=0 (default) is plain sampling.
+        """
         # Make a copy since transformations may modify the inputs in place.
         inputs = jax.tree.map(lambda x: x, obs)
         inputs = self._input_transform(inputs)
@@ -86,6 +102,16 @@ class Policy(BasePolicy):
             if noise.ndim == 2:  # If noise is (action_horizon, action_dim), add batch dimension
                 noise = noise[None, ...]  # Make it (1, action_horizon, action_dim)
             sample_kwargs["noise"] = noise
+
+        if prev_action_chunk is not None or inference_delay != 0:
+            if self._is_pytorch_model:
+                prev = torch.from_numpy(np.asarray(prev_action_chunk)).to(self._pytorch_device)
+            else:
+                prev = jnp.asarray(prev_action_chunk)
+            if prev.ndim == 2:
+                prev = prev[None, ...]
+            sample_kwargs["prev_action_chunk"] = prev
+            sample_kwargs["inference_delay"] = inference_delay
 
         observation = _model.Observation.from_dict(inputs)
         start_time = time.monotonic()

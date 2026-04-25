@@ -32,6 +32,13 @@ class Pi0Config(_model.BaseModelConfig):
     # This config option is not used directly by the model, but it is read by the ModelTransformFactory.
     discrete_state_input: bool = None  # type: ignore
 
+    # Training-time RTC: when set, training samples a per-example delay
+    # `d ~ Unif{0, ..., rtc_max_delay}`, fixes the first `d` action slots to clean ground-truth
+    # (per-token time=0 in openpi's inverted convention), and masks loss to the postfix.
+    # Inference is unaffected by this field; sample_actions takes inference_delay as a runtime kwarg.
+    # Requires pi05=True (adaRMS conditioning).
+    rtc_max_delay: int | None = None
+
     pytorch_compile_mode: str | None = "max-autotune"
 
     def __post_init__(self):
@@ -39,6 +46,12 @@ class Pi0Config(_model.BaseModelConfig):
             object.__setattr__(self, "max_token_len", 200 if self.pi05 else 48)
         if self.discrete_state_input is None:
             object.__setattr__(self, "discrete_state_input", self.pi05)
+        if self.rtc_max_delay is not None and not self.pi05:
+            raise ValueError(
+                "RTC training requires pi05=True (adaRMS); set pi05=True or rtc_max_delay=None."
+            )
+        if self.rtc_max_delay is not None and self.rtc_max_delay < 0:
+            raise ValueError(f"rtc_max_delay must be non-negative, got {self.rtc_max_delay}")
         if self.pytorch_compile_mode is not None:
             assert self.pytorch_compile_mode in [
                 "default",

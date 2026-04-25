@@ -277,7 +277,15 @@ class BaseModel(nnx.Module, abc.ABC):
         actions: Actions,
         *,
         train: bool = False,
-    ) -> at.Float[at.Array, "*b ah"]: ...
+    ) -> tuple[at.Float[at.Array, "*b ah"], dict[str, at.Array]]:
+        """Returns the per-step loss tensor and an auxiliary metrics dict for logging.
+
+        The metrics dict carries scalar arrays that downstream training code surfaces in
+        wandb / progress bars without affecting gradients (use jax.lax.stop_gradient or
+        keep them outside the value-and-grad path). For models without auxiliary metrics
+        (e.g. pi0_fast), this dict is empty.
+        """
+        ...
 
     @abc.abstractmethod
     def sample_actions(self, rng: at.KeyArrayLike, observation: Observation, **kwargs) -> Actions: ...
