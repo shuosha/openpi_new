@@ -677,6 +677,7 @@ _CONFIGS = [
             action_expert_variant="gemma_300m_lora",
             rtc_max_delay=0,
             action_horizon=50,
+            state_noise_std=0.01,
         ),
         data=ScenixAlohaDataConfig(
             repo_id="shashuo0104/260410_aloha_cube_handover_v1_30Hz",

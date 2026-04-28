@@ -39,6 +39,11 @@ class Pi0Config(_model.BaseModelConfig):
     # Requires pi05=True (adaRMS conditioning).
     rtc_max_delay: int | None = None
 
+    # Standard deviation of Gaussian noise added to observation.state during training
+    # (state is already normalized at this point, so this is in normalized units).
+    # 0.0 disables state noise. Only applied when train=True.
+    state_noise_std: float = 0.0
+
     pytorch_compile_mode: str | None = "max-autotune"
 
     def __post_init__(self):

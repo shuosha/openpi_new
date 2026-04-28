@@ -148,6 +148,7 @@ def preprocess_observation(
     train: bool = False,
     image_keys: Sequence[str] = IMAGE_KEYS,
     image_resolution: tuple[int, int] = IMAGE_RESOLUTION,
+    state_noise_std: float = 0.0,
 ) -> Observation:
     """Preprocess the observations by performing image augmentations (if train=True), resizing (if necessary), and
     filling in a default image mask (if necessary).
@@ -157,6 +158,11 @@ def preprocess_observation(
         raise ValueError(f"images dict missing keys: expected {image_keys}, got {list(observation.images)}")
 
     batch_shape = observation.state.shape[:-1]
+
+    state = observation.state
+    if train and state_noise_std > 0.0:
+        noise_rng, rng = jax.random.split(rng)
+        state = state + jax.random.normal(noise_rng, state.shape, dtype=state.dtype) * state_noise_std
 
     out_images = {}
     for key in image_keys:
@@ -200,7 +206,7 @@ def preprocess_observation(
     return Observation(
         images=out_images,
         image_masks=out_masks,
-        state=observation.state,
+        state=state,
         tokenized_prompt=observation.tokenized_prompt,
         tokenized_prompt_mask=observation.tokenized_prompt_mask,
         token_ar_mask=observation.token_ar_mask,

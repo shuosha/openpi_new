@@ -107,6 +107,8 @@ class Pi0(_model.BaseModel):
             self.action_time_mlp_out = nnx.Linear(action_expert_config.width, action_expert_config.width, rngs=rngs)
         self.action_out_proj = nnx.Linear(action_expert_config.width, config.action_dim, rngs=rngs)
 
+        self.state_noise_std = config.state_noise_std
+
         # This attribute gets automatically set by model.train() and model.eval().
         self.deterministic = True
 
@@ -204,7 +206,9 @@ class Pi0(_model.BaseModel):
             preprocess_rng, noise_rng, time_rng = jax.random.split(rng, 3)
         else:
             preprocess_rng, noise_rng, time_rng, delay_rng = jax.random.split(rng, 4)
-        observation = _model.preprocess_observation(preprocess_rng, observation, train=train)
+        observation = _model.preprocess_observation(
+            preprocess_rng, observation, train=train, state_noise_std=self.state_noise_std
+        )
 
         batch_shape = actions.shape[:-2]
         noise = jax.random.normal(noise_rng, actions.shape)
