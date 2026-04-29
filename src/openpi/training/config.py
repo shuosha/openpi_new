@@ -649,11 +649,12 @@ _CONFIGS = [
             action_expert_variant="gemma_300m_lora",
             rtc_max_delay=10,
             action_horizon=50,
+            state_noise_std=0.01,
         ),
         data=ScenixAlohaDataConfig(
-            repo_id="shashuo0104/260413_aloha_cube_handover_v2",
+            repo_id="shashuo0104/260428_aloha_cube_handover_80Hz_v2",
             base_config=DataConfig(prompt_from_task=True),
-            assets=AssetsConfig(asset_id="shashuo0104/260413_aloha_cube_handover_v2"),
+            assets=AssetsConfig(asset_id="shashuo0104/260428_aloha_cube_handover_80Hz_v2"),
             default_prompt="cube_handover"
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
