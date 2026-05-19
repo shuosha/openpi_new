@@ -671,6 +671,35 @@ _CONFIGS = [
         ema_decay=None,
     ),
     TrainConfig(
+        name="pi05_aloha_bar_picknplace_80Hz",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            rtc_max_delay=10,
+            action_horizon=50,
+            state_noise_std=0.005,
+        ),
+        data=ScenixAlohaDataConfig(
+            repo_id="shashuo0104/260515_aloha_bar_picknplace_80Hz_v1",
+            base_config=DataConfig(prompt_from_task=True),
+            assets=AssetsConfig(asset_id="shashuo0104/260515_aloha_bar_picknplace_80Hz_v1"),
+            default_prompt="pick up black bar with both grippers and insert into red tray"
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        batch_size=16,
+        num_train_steps=50_000,
+        save_interval=10_000,
+        keep_period=10_000,
+        policy_metadata={"reset_pose": None},
+        freeze_filter=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+        ).get_freeze_filter(),
+        ema_decay=None,
+    ),
+    TrainConfig(
         name="pi05_aloha_cube_handover_30Hz",
         model=pi0_config.Pi0Config(
             pi05=True,
