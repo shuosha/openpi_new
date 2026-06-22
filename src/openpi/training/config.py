@@ -211,18 +211,26 @@ class ScenixAlohaDataConfig(DataConfigFactory):
     extra_delta_transform: bool = False
     default_prompt: str | None = None
     action_sequence_keys: Sequence[str] = ("action",)
+    action_dim: int = 14
+    use_right_wrist_cam: bool = True
+    top_cam_key: str = "observation.images.top"
+    left_wrist_cam_key: str = "observation.images.left_wrist"
+    right_wrist_cam_key: str = "observation.images.right_wrist"
 
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
+        images_remap = {
+            "cam_top": self.top_cam_key,
+            "cam_left_wrist": self.left_wrist_cam_key,
+        }
+        if self.use_right_wrist_cam:
+            images_remap["cam_right_wrist"] = self.right_wrist_cam_key
+
         repack_transform = _transforms.Group(
             inputs=[
                 _transforms.RepackTransform(
                     {
-                        "images": {
-                            "cam_top": "observation.images.top",
-                            "cam_left_wrist": "observation.images.left_wrist",
-                            "cam_right_wrist": "observation.images.right_wrist",
-                        },
+                        "images": images_remap,
                         "state": "observation.state",
                         "actions": "action",
                     }
@@ -231,8 +239,8 @@ class ScenixAlohaDataConfig(DataConfigFactory):
         )
 
         data_transforms = _transforms.Group(
-            inputs=[scenix_aloha_policy.ScenixAlohaInputs()],
-            outputs=[scenix_aloha_policy.ScenixAlohaOutputs()],
+            inputs=[scenix_aloha_policy.ScenixAlohaInputs(state_dim=self.action_dim, use_right_wrist_cam=self.use_right_wrist_cam)],
+            outputs=[scenix_aloha_policy.ScenixAlohaOutputs(action_dim=self.action_dim)],
         )
 
         # One additional data transform: pi0 models are trained on delta actions (relative to the first
@@ -681,10 +689,43 @@ _CONFIGS = [
             state_noise_std=0.005,
         ),
         data=ScenixAlohaDataConfig(
-            repo_id="shashuo0104/260515_aloha_bar_picknplace_80Hz_v1",
+            repo_id="shashuo0104/260527_aloha_bar_picknplace_80Hz_v2",
             base_config=DataConfig(prompt_from_task=True),
-            assets=AssetsConfig(asset_id="shashuo0104/260515_aloha_bar_picknplace_80Hz_v1"),
+            assets=AssetsConfig(asset_id="shashuo0104/260527_aloha_bar_picknplace_80Hz_v2"),
             default_prompt="pick up black bar with both grippers and insert into red tray"
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        batch_size=16,
+        num_train_steps=50_000,
+        save_interval=10_000,
+        keep_period=10_000,
+        policy_metadata={"reset_pose": None},
+        freeze_filter=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+        ).get_freeze_filter(),
+        ema_decay=None,
+    ),
+    TrainConfig(
+        name="pi05_aloha_pipe_insert_80Hz",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            rtc_max_delay=10,
+            action_horizon=50,
+            state_noise_std=0.005,
+        ),
+        data=ScenixAlohaDataConfig(
+            repo_id="shashuo0104/260617_aloha_pipe_insert_80Hz_v1",
+            base_config=DataConfig(prompt_from_task=True),
+            assets=AssetsConfig(asset_id="shashuo0104/260617_aloha_pipe_insert_80Hz_v1"),
+            default_prompt="grasp the pipe with left gripper and insert it into the connector",
+            action_dim=7,
+            use_right_wrist_cam=False,
+            top_cam_key="observation.images.top_camera",
+            left_wrist_cam_key="observation.images.left_wrist_camera",
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
         batch_size=16,

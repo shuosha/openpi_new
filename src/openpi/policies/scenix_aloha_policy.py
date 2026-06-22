@@ -30,9 +30,10 @@ def _parse_image(image) -> np.ndarray:
 
 @dataclasses.dataclass(frozen=True)
 class ScenixAlohaInputs(transforms.DataTransformFn):
-    """Inputs for a dual-arm Aloha policy with 3 cameras and 14D state/actions."""
+    """Inputs for an Aloha policy. state_dim and use_right_wrist_cam control the active modalities."""
 
-    EXPECTED_CAMERAS: tuple[str, ...] = ("cam_top", "cam_left_wrist", "cam_right_wrist")
+    state_dim: int = 14
+    use_right_wrist_cam: bool = True
 
     def __call__(self, data: dict) -> dict:
         in_images = {k: _parse_image(v) for k, v in data["images"].items()}
@@ -42,20 +43,22 @@ class ScenixAlohaInputs(transforms.DataTransformFn):
         images = {"base_0_rgb": base_image}
         image_masks = {"base_0_rgb": np.True_}
 
-        wrist_mapping = {
-            "left_wrist_0_rgb": "cam_left_wrist",
-            "right_wrist_0_rgb": "cam_right_wrist",
-        }
-        for dest, source in wrist_mapping.items():
-            if source in in_images:
-                images[dest] = in_images[source]
-                image_masks[dest] = np.True_
-            else:
-                images[dest] = np.zeros_like(base_image)
-                image_masks[dest] = np.False_
+        if "cam_left_wrist" in in_images:
+            images["left_wrist_0_rgb"] = in_images["cam_left_wrist"]
+            image_masks["left_wrist_0_rgb"] = np.True_
+        else:
+            images["left_wrist_0_rgb"] = np.zeros_like(base_image)
+            image_masks["left_wrist_0_rgb"] = np.False_
+
+        if self.use_right_wrist_cam and "cam_right_wrist" in in_images:
+            images["right_wrist_0_rgb"] = in_images["cam_right_wrist"]
+            image_masks["right_wrist_0_rgb"] = np.True_
+        else:
+            images["right_wrist_0_rgb"] = np.zeros_like(base_image)
+            image_masks["right_wrist_0_rgb"] = np.False_
 
         inputs = {
-            "state": data["state"],
+            "state": np.asarray(data["state"])[: self.state_dim],
             "image": images,
             "image_mask": image_masks,
         }
@@ -71,9 +74,9 @@ class ScenixAlohaInputs(transforms.DataTransformFn):
 
 @dataclasses.dataclass(frozen=True)
 class ScenixAlohaOutputs(transforms.DataTransformFn):
-    """Outputs for the Scenix Aloha policy. Returns first 14 action dims."""
+    """Outputs for the Scenix Aloha policy."""
 
-    action_dim: int = 14
+    action_dim: int = 7
 
     def __call__(self, data: dict) -> dict:
         return {"actions": np.asarray(data["actions"][:, :self.action_dim])}
