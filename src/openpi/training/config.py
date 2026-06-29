@@ -689,9 +689,9 @@ _CONFIGS = [
             state_noise_std=0.005,
         ),
         data=ScenixAlohaDataConfig(
-            repo_id="shashuo0104/260527_aloha_bar_picknplace_80Hz_v2",
+            repo_id="shashuo0104/260628_aloha_bar_picknplace_80Hz_white_red_v2",
             base_config=DataConfig(prompt_from_task=True),
-            assets=AssetsConfig(asset_id="shashuo0104/260527_aloha_bar_picknplace_80Hz_v2"),
+            assets=AssetsConfig(asset_id="shashuo0104/260628_aloha_bar_picknplace_80Hz_white_red_v2"),
             default_prompt="pick up black bar with both grippers and insert into red tray"
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
