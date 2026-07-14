@@ -718,9 +718,9 @@ _CONFIGS = [
             state_noise_std=0.005,
         ),
         data=ScenixAlohaDataConfig(
-            repo_id="shashuo0104/260629_aloha_pipe_insert_80Hz_v2",
+            repo_id="shashuo0104/20260711_aloha_pipe_insert_80Hz_v3",
             base_config=DataConfig(prompt_from_task=True),
-            assets=AssetsConfig(asset_id="shashuo0104/260629_aloha_pipe_insert_80Hz_v2"),
+            assets=AssetsConfig(asset_id="shashuo0104/20260711_aloha_pipe_insert_80Hz_v3"),
             default_prompt="grasp the pipe with left gripper and insert it into the connector",
             action_dim=7,
             use_right_wrist_cam=False,
