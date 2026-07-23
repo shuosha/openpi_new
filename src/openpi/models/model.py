@@ -149,9 +149,24 @@ def preprocess_observation(
     image_keys: Sequence[str] = IMAGE_KEYS,
     image_resolution: tuple[int, int] = IMAGE_RESOLUTION,
     state_noise_std: float = 0.0,
+    image_aug_color_jitter: tuple[float, float, float, float] = (0.3, 0.4, 0.5, 0.1),
+    image_aug_color_jitter_p: float = 0.5,
+    image_aug_crop_fraction: float = 0.95,
+    image_aug_rotate_deg: float = 5.0,
+    image_aug_geometric_p: float = 1.0,
+    image_aug_apply_geometric_to_wrist: bool = False,
 ) -> Observation:
     """Preprocess the observations by performing image augmentations (if train=True), resizing (if necessary), and
     filling in a default image mask (if necessary).
+
+    Image augmentation (train only), per camera:
+      - Geometric block (rotate -> crop -> resize back), gated by a single shared probability
+        `image_aug_geometric_p` so a sample gets both geometric augs or neither. Applied to
+        non-wrist cameras always, and to wrist cameras only if
+        `image_aug_apply_geometric_to_wrist` is True. Rotating before cropping lets the crop trim
+        the rotation border wedge (augmax fills rotated borders with black).
+      - Color jitter, applied with its own probability `image_aug_color_jitter_p`.
+    Defaults reproduce the previously-hardcoded behavior.
     """
 
     if not set(image_keys).issubset(observation.images):
@@ -164,6 +179,10 @@ def preprocess_observation(
         noise_rng, rng = jax.random.split(rng)
         state = state + jax.random.normal(noise_rng, state.shape, dtype=state.dtype) * state_noise_std
 
+    brightness, contrast, saturation, hue = image_aug_color_jitter
+    use_crop = 0.0 < image_aug_crop_fraction < 1.0
+    use_rotate = image_aug_rotate_deg > 0.0
+
     out_images = {}
     for key in image_keys:
         image = observation.images[key]
@@ -175,19 +194,44 @@ def preprocess_observation(
             # Convert from [-1, 1] to [0, 1] for augmax.
             image = image / 2.0 + 0.5
 
-            transforms = []
-            if "wrist" not in key:
-                height, width = image.shape[1:3]
-                transforms += [
-                    augmax.RandomCrop(int(width * 0.95), int(height * 0.95)),
+            height, width = image.shape[1:3]
+            apply_geometric = ("wrist" not in key) or image_aug_apply_geometric_to_wrist
+
+            # Build the geometric block: rotate first, then crop the interior, then resize back.
+            # This is one fused resample in augmax (geometric transforms compose their coordinate
+            # grids), and cropping after rotating trims most of the black rotation border.
+            geometric_transforms = []
+            if apply_geometric and use_rotate:
+                geometric_transforms.append(augmax.Rotate((-image_aug_rotate_deg, image_aug_rotate_deg)))
+            if apply_geometric and use_crop:
+                geometric_transforms += [
+                    augmax.RandomCrop(int(width * image_aug_crop_fraction), int(height * image_aug_crop_fraction)),
                     augmax.Resize(width, height),
-                    augmax.Rotate((-5, 5)),
                 ]
-            transforms += [
-                augmax.ColorJitter(brightness=0.3, contrast=0.4, saturation=0.5),
-            ]
+
+            def augment_one(sub_rng, img):
+                out = img
+                if geometric_transforms:
+                    geom_rng, gate_rng, color_rng = jax.random.split(sub_rng, 3)
+                    geom_img = augmax.Chain(*geometric_transforms)(geom_rng, img)
+                    # Shared gate over the whole geometric block: keep either the fully-augmented
+                    # geometric image or the original, per sample.
+                    do_geom = jax.random.bernoulli(gate_rng, image_aug_geometric_p)
+                    out = jnp.where(do_geom, geom_img, img)
+                else:
+                    color_rng = sub_rng
+                # Color jitter carries its own probability gate.
+                out = augmax.ColorJitter(
+                    brightness=brightness,
+                    contrast=contrast,
+                    saturation=saturation,
+                    hue=hue,
+                    p=image_aug_color_jitter_p,
+                )(color_rng, out)
+                return out
+
             sub_rngs = jax.random.split(rng, image.shape[0])
-            image = jax.vmap(augmax.Chain(*transforms))(sub_rngs, image)
+            image = jax.vmap(augment_one)(sub_rngs, image)
 
             # Back to [-1, 1].
             image = image * 2.0 - 1.0

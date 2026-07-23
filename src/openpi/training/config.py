@@ -716,6 +716,14 @@ _CONFIGS = [
             rtc_max_delay=10,
             action_horizon=50,
             state_noise_std=0.005,
+            # Image augmentation: color jitter (b,c,s,h) and geometric (crop 0.95 + rotate +/-5)
+            # each behind a 0.5 probability gate, applied to all cameras including wrist.
+            image_aug_color_jitter=(0.3, 0.4, 0.5, 0.08),
+            image_aug_color_jitter_p=0.5,
+            image_aug_crop_fraction=0.95,
+            image_aug_rotate_deg=5.0,
+            image_aug_geometric_p=0.5,
+            image_aug_apply_geometric_to_wrist=True,
         ),
         data=ScenixAlohaDataConfig(
             repo_id="shashuo0104/20260711_aloha_pipe_insert_80Hz_v3",

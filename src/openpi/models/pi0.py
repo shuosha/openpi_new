@@ -109,6 +109,14 @@ class Pi0(_model.BaseModel):
 
         self.state_noise_std = config.state_noise_std
 
+        # Image augmentation config (applied in preprocess_observation when train=True).
+        self.image_aug_color_jitter = config.image_aug_color_jitter
+        self.image_aug_color_jitter_p = config.image_aug_color_jitter_p
+        self.image_aug_crop_fraction = config.image_aug_crop_fraction
+        self.image_aug_rotate_deg = config.image_aug_rotate_deg
+        self.image_aug_geometric_p = config.image_aug_geometric_p
+        self.image_aug_apply_geometric_to_wrist = config.image_aug_apply_geometric_to_wrist
+
         # This attribute gets automatically set by model.train() and model.eval().
         self.deterministic = True
 
@@ -207,7 +215,16 @@ class Pi0(_model.BaseModel):
         else:
             preprocess_rng, noise_rng, time_rng, delay_rng = jax.random.split(rng, 4)
         observation = _model.preprocess_observation(
-            preprocess_rng, observation, train=train, state_noise_std=self.state_noise_std
+            preprocess_rng,
+            observation,
+            train=train,
+            state_noise_std=self.state_noise_std,
+            image_aug_color_jitter=self.image_aug_color_jitter,
+            image_aug_color_jitter_p=self.image_aug_color_jitter_p,
+            image_aug_crop_fraction=self.image_aug_crop_fraction,
+            image_aug_rotate_deg=self.image_aug_rotate_deg,
+            image_aug_geometric_p=self.image_aug_geometric_p,
+            image_aug_apply_geometric_to_wrist=self.image_aug_apply_geometric_to_wrist,
         )
 
         batch_shape = actions.shape[:-2]

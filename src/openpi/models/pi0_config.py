@@ -44,6 +44,25 @@ class Pi0Config(_model.BaseModelConfig):
     # 0.0 disables state noise. Only applied when train=True.
     state_noise_std: float = 0.0
 
+    # --- Image augmentation (applied in preprocess_observation when train=True) ---
+    # Defaults reproduce the previously-hardcoded behavior exactly, so configs that don't set
+    # these are unchanged.
+    # Color jitter magnitudes (brightness, contrast, saturation, hue). hue=0.1 matches augmax's
+    # previous default (color jitter was called without an explicit hue).
+    image_aug_color_jitter: tuple[float, float, float, float] = (0.3, 0.4, 0.5, 0.1)
+    # Probability of applying color jitter. 0.5 matches augmax's previous ColorJitter default.
+    image_aug_color_jitter_p: float = 0.5
+    # Random crop as a fraction of each dimension (e.g. 0.95). <=0 or >=1 disables cropping.
+    image_aug_crop_fraction: float = 0.95
+    # Max rotation in degrees; images are rotated by U(-deg, +deg). 0 disables rotation.
+    image_aug_rotate_deg: float = 5.0
+    # Shared probability gate for the geometric block (crop + rotate). 1.0 = always applied,
+    # matching the previous behavior (crop had no gate; rotate defaulted to p=1.0).
+    image_aug_geometric_p: float = 1.0
+    # Whether to apply the geometric block to wrist cameras. Previously geometric augs were
+    # skipped for wrist cameras (eye-in-hand views are tightly coupled to the gripper pose).
+    image_aug_apply_geometric_to_wrist: bool = False
+
     pytorch_compile_mode: str | None = "max-autotune"
 
     def __post_init__(self):
